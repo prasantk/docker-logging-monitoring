@@ -23,6 +23,7 @@ instances = []
 end
 
 manager_ip = "192.168.10.2"
+docker_compose_version = "1.17.1"
 
 File.open("./hosts", 'w') { |file| 
   instances.each do |i|
@@ -30,10 +31,21 @@ File.open("./hosts", 'w') { |file|
   end
 }
 
+$install_docker_compose = <<EOC
+test -e /usr/local/bin/docker-compose || \\
+curl -sSL https://github.com/docker/compose/releases/download/#{docker_compose_version}/docker-compose-`uname -s`-`uname -m` \\
+  | sudo tee /usr/local/bin/docker-compose > /dev/null
+sudo chmod +x /usr/local/bin/docker-compose
+EOC
+
 Vagrant.configure("2") do |config|
     config.vm.provider "virtualbox" do |v|
      	v.memory = vmmemory
-  	v.cpus = numcpu
+  	  v.cpus = numcpu
+    end
+
+    if Vagrant.has_plugin?("vagrant-cachier")
+      config.cache.scope = :box
     end
     
     config.vm.define "manager" do |i|
@@ -41,6 +53,7 @@ Vagrant.configure("2") do |config|
       i.vm.hostname = "manager"
       i.vm.network "private_network", ip: "#{manager_ip}"
       i.vm.provision "shell", path: "./provision.sh"
+      i.vm.provision "shell", inline: $install_docker_compose
       if File.file?("./hosts") 
         i.vm.provision "file", source: "hosts", destination: "/tmp/hosts"
         i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
