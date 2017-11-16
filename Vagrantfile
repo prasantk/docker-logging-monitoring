@@ -23,20 +23,12 @@ instances = []
 end
 
 manager_ip = "192.168.10.2"
-docker_compose_version = "1.17.1"
 
 File.open("./hosts", 'w') { |file| 
   instances.each do |i|
     file.write("#{i[:ip]} #{i[:name]} #{i[:name]}\n")
   end
 }
-
-$install_docker_compose = <<EOC
-test -e /usr/local/bin/docker-compose || \\
-curl -sSL https://github.com/docker/compose/releases/download/#{docker_compose_version}/docker-compose-`uname -s`-`uname -m` \\
-  | sudo tee /usr/local/bin/docker-compose > /dev/null
-sudo chmod +x /usr/local/bin/docker-compose
-EOC
 
 Vagrant.configure("2") do |config|
     config.vm.provider "virtualbox" do |v|
@@ -52,8 +44,8 @@ Vagrant.configure("2") do |config|
       i.vm.box = "ubuntu/xenial64"
       i.vm.hostname = "manager"
       i.vm.network "private_network", ip: "#{manager_ip}"
-      i.vm.provision "shell", path: "./provision.sh"
-      i.vm.provision "shell", inline: $install_docker_compose
+      i.vm.provision "shell", path: "./scripts/install_docker.sh"
+      i.vm.provision "shell", path: "./scripts/install_compose.sh"
       if File.file?("./hosts") 
         i.vm.provision "file", source: "hosts", destination: "/tmp/hosts"
         i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
@@ -69,7 +61,7 @@ Vagrant.configure("2") do |config|
       i.vm.box = "ubuntu/xenial64"
       i.vm.hostname = instance[:name]
       i.vm.network "private_network", ip: "#{instance[:ip]}"
-      i.vm.provision "shell", path: "./provision.sh"
+      i.vm.provision "shell", path: "./scripts/install_docker.sh"
       if File.file?("./hosts") 
         i.vm.provision "file", source: "hosts", destination: "/tmp/hosts"
         i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
