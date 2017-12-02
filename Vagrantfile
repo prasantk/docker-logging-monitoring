@@ -12,7 +12,7 @@ numworkers = 2
 
 # VirtualBox settings
 # Increase vmmemory if you want more than 512mb memory in the vm's
-vmmemory = 512
+vmmemory = 2048
 # Increase numcpu if you want more cpu's per vm
 numcpu = 1
 
@@ -31,21 +31,21 @@ File.open("./hosts", 'w') { |file|
 }
 
 Vagrant.configure("2") do |config|
-    config.vm.provider "virtualbox" do |v|
-     	v.memory = vmmemory
-  	  v.cpus = numcpu
-    end
-
     if Vagrant.has_plugin?("vagrant-cachier")
       config.cache.scope = :box
     end
     
     config.vm.define "manager" do |i|
       i.vm.box = "ubuntu/xenial64"
+      i.vm.provider :virtualbox do |vb|
+        vb.memory = vmmemory * 3
+        vb.cpus = numcpu
+      end
       i.vm.hostname = "manager"
       i.vm.network "private_network", ip: "#{manager_ip}"
       i.vm.provision "shell", path: "./scripts/install_docker.sh"
       i.vm.provision "shell", path: "./scripts/install_compose.sh"
+      i.vm.provision "shell", path: "./scripts/prepare_environment.sh"
       if File.file?("./hosts") 
         i.vm.provision "file", source: "hosts", destination: "/tmp/hosts"
         i.vm.provision "shell", inline: "cat /tmp/hosts >> /etc/hosts", privileged: true
@@ -59,6 +59,10 @@ Vagrant.configure("2") do |config|
   instances.each do |instance| 
     config.vm.define instance[:name] do |i|
       i.vm.box = "ubuntu/xenial64"
+      i.vm.provider :virtualbox do |vb|
+        vb.memory = vmmemory
+        vb.cpus = numcpu
+      end
       i.vm.hostname = instance[:name]
       i.vm.network "private_network", ip: "#{instance[:ip]}"
       i.vm.provision "shell", path: "./scripts/install_docker.sh"
